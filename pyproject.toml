@@ -10,4 +10,5 @@ dependencies = [
     "music21>=9.5.0",
     "opencv-python>=4.11.0.86",
     "streamlit>=1.42.2",
+    "tqdm>=4.67.1",
 ]

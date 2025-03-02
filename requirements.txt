@@ -2,4 +2,3 @@ music21>=7.3.0
 pillow>=9.0.0
 numpy>=1.20.0
 matplotlib>=3.5.0
-opencv-python>=4.5.0
