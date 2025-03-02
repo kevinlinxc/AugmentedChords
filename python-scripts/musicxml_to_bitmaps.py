@@ -9,7 +9,8 @@ import os
 
 logger = logging.getLogger(__file__)
 
-xml_path = "megalovania.mxl"
+xml_path = "furelise.mxl"
+num_bars = 2
 
 score = music21.converter.parse(xml_path)
 total_measures = len(score.parts[0].getElementsByClass(stream.Measure))
@@ -26,9 +27,9 @@ bitmap_folder.mkdir(parents=True, exist_ok=True)
 output_index = 0
 
 
-for i in tqdm(range(1, total_measures)):
+for i in tqdm(range(1, total_measures, num_bars)):
     # xml to png
-    measures_stream: music21.stream.Score = score.measure(i)
+    measures_stream: music21.stream.Score = score.measures(i, i+num_bars-1)
 
     my_stream = stream.Stream()
     for i in range(len(measures_stream)):

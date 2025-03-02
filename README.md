@@ -31,3 +31,6 @@ Final pipeline from musicxml to bitmaps:
 musicxml -> muse21 to output png -> crop big gaps, resize and invert using opencv -> convert to bitmap
 -> use imagemagick via os.system to convert to 1-bit bitmap/make it smaller -> read with readFileSync in js
 
+
+https://stackoverflow.com/questions/51399121/how-to-save-int16array-buffer-to-wav-file-node-js
+

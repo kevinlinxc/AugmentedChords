@@ -11,6 +11,7 @@ class ExampleAugmentOSApp extends TpaServer {
   constructor(config: any) {
     super(config);
     this.image_index = 0;
+    
     // start off with image 0
   }
 
@@ -80,9 +81,10 @@ class ExampleAugmentOSApp extends TpaServer {
 
   protected async onSession(session: TpaSession, sessionId: string, userId: string): Promise<void> {
     // Show welcome message
-    session.layouts.showTextWall("Augmented Chords Ready\nUse keyboard arrows to navigate");
+    session.layouts.showTextWall("Augmented Chords Ready\nUse [ and ] to navigate measures]");
     
     // Set up keyboard input listener
+    // careful, if you connect twice this gets set up twice
     this.setupInputListener(session);
     this.setBitmap(0, session);
 

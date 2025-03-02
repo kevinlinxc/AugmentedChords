@@ -9,7 +9,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@augmentos/sdk": "^1.0.8"
+    "@augmentos/sdk": "^1.0.10",
+    "wavefile": "^11.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.8"
