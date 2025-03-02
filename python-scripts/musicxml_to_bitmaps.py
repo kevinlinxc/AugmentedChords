@@ -62,6 +62,9 @@ for i in tqdm(range(1, total_measures)):
         bottom_row_index -= 1
     
     cropped_img = img[top_row_index:bottom_row_index+1]
+
+    text = f"Meas. {output_index}"
+    cropped_img = cv2.putText(cropped_img, text, (cropped_img.shape[1] // 2, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
     
     ret, img = cv2.threshold(cropped_img, 127, 255, cv2.THRESH_BINARY)
     # downscale until the height is 576
@@ -77,7 +80,7 @@ for i in tqdm(range(1, total_measures)):
     # template command is convert 0.bmp -monochrome -type bilevel final/0.bmp
     final_folder = Path(xml_path).parent / Path(xml_path).stem / "final"
     final_folder.mkdir(parents=True, exist_ok=True)
-    convert_str = f"convert {bitmap_folder / f'{output_index}.bmp'} -monochrome -type bilevel {final_folder / f'{output_index}.bmp'}"
+    convert_str = f"magick {bitmap_folder / f'{output_index}.bmp'} -monochrome -type bilevel {final_folder / f'{output_index}.bmp'}"
     print("Running command: ", convert_str)
     os.system(convert_str)
     output_index += 1

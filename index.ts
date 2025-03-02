@@ -89,7 +89,7 @@ class ExampleAugmentOSApp extends TpaServer {
       this.image_index += 1;
       this.updateImage(this.image_index);
       this.sendBitmap(session);
-    }, 2000);
+    }, 5000);
 
     // Handle real-time transcription
     const cleanup = [
