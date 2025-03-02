@@ -8,10 +8,9 @@ class ExampleAugmentOSApp extends TpaServer {
 
   constructor(config: any) {
     super(config);
-
-    // Read and encode the image in constructor
+    // start off with image 0
     try {
-      const imagePath = path.join(__dirname, '0-crop-magick.bmp');
+      const imagePath = path.join(__dirname, '0.bmp');
       const imageBuffer = fs.readFileSync(imagePath);
       this.imageBase64 = imageBuffer.toString('base64');
       console.log('Image encoded successfully');
@@ -23,25 +22,15 @@ class ExampleAugmentOSApp extends TpaServer {
   }
   protected async onSession(session: TpaSession, sessionId: string, userId: string): Promise<void> {
     // Show welcome message
-    session.layouts.showTextWall("Augmented Chords App!");
-
-    
+    setInterval(() => {
+      // Initial display of chords
+      this.sendBitmap(session);
+    }, 2000); 
 
     // Handle real-time transcription
     const cleanup = [
       
-      session.events.onTranscription((data) => {
-        // session.layouts.showTextWall(data.text, {
-        //   durationMs: data.isFinal ? 3000 : undefined
-        // });
-        if(data.isFinal){
-          console.log("GOT A FINAL: " + data.text);
-        if( data.text.indexOf("image") != -1) {
-          console.log("SENDING THE IMAGE!");
-          session.layouts.showBitmapView(this.imageBase64);
-        }
-      }
-      }),
+      session.events.onTranscription((data) => {}),
 
       session.events.onPhoneNotifications((data) => {}),
 
@@ -55,6 +44,10 @@ class ExampleAugmentOSApp extends TpaServer {
     // Add cleanup handlers
     cleanup.forEach(handler => this.addCleanupHandler(handler));
   }
+
+  private sendBitmap(session: TpaSession) {
+    session.layouts.showBitmapView(this.imageBase64);
+  }
 }
 
 
@@ -67,5 +60,7 @@ const app = new ExampleAugmentOSApp({
   port: 80, // The port you're hosting the server on
   augmentOSWebsocketUrl: 'wss://dev.augmentos.org/tpa-ws' //AugmentOS url
 });
+
+
 
 app.start().catch(console.error);

@@ -74,5 +74,11 @@ for i in tqdm(range(1, 4)):
 
     img = cv2.bitwise_not(img)
     cv2.imwrite(str(bitmap_folder / f"{output_index}.bmp"), img)
-    output_index += 1
 
+
+
+    # use imagemagick to decrease file size
+
+    # template command is convert 0.bmp -monochrome -type bilevel bitmaps_final/0.bmp
+    convert_str = f"convert {bitmap_folder / f'{output_index}.bmp'} -monochrome -type bilevel {bitmap_folder / f'{output_index}.bmp'}"
+    output_index += 1

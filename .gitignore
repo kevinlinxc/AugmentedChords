@@ -1,3 +1,4 @@
 *.png
 *.bmp
 **.DS_Store**
+node_modules/
