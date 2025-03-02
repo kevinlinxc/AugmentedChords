@@ -10,13 +10,11 @@ class ExampleAugmentOSApp extends TpaServer {
 
   constructor(config: any) {
     super(config);
-    // start off with image 0
-
     this.image_index = 0;
-    this.updateImage(this.image_index);
+    // start off with image 0
   }
 
-  private updateImage(index: number) {
+  private setBitmap(index: number, session: TpaSession): void {
     try {
       if (index > 62) { // megalovania specific
         index = 0;
@@ -24,7 +22,15 @@ class ExampleAugmentOSApp extends TpaServer {
       const imagePath = path.join(__dirname, `megalovania/final-dilate4/${index}.bmp`);
       const imageBuffer = fs.readFileSync(imagePath);
       this.imageBase64 = imageBuffer.toString('base64');
-      console.log(`Image updated to index ${index}`);
+      session.layouts.showBitmapView(this.imageBase64);
+      // start new interval
+      if (this.bitmapInterval) {
+        clearInterval(this.bitmapInterval);
+      }
+      this.bitmapInterval = setInterval(() => {
+        session.layouts.showBitmapView(this.imageBase64);
+      }, 10000);
+      console.log(`Set bitmap image to bitmap ${this.image_index}`);
     } catch (error) {
       console.error(`Error reading or encoding image ${index}:`, error);
       this.imageBase64 = '';
@@ -53,14 +59,12 @@ class ExampleAugmentOSApp extends TpaServer {
         if (isForward) {
           console.log('Advancing forward');
           this.image_index++;
-          this.updateImage(this.image_index);
-          this.sendBitmap(session);
+          this.setBitmap(this.image_index, session);
         } else {
           console.log('Going backward');
           if (this.image_index > 0) {
             this.image_index--;
-            this.updateImage(this.image_index);
-            this.sendBitmap(session);
+            this.setBitmap(this.image_index, session);
           }
         }
       }
@@ -80,17 +84,12 @@ class ExampleAugmentOSApp extends TpaServer {
     
     // Set up keyboard input listener
     this.setupInputListener(session);
-
-    // Initial bitmap display
-    setInterval(() => {
-      // this.image_index += 1;
-      this.updateImage(this.image_index);
-      this.sendBitmap(session);
-    }, 5000);
+    this.setBitmap(0, session);
 
     // Handle real-time transcription
     const cleanup = [
       session.events.onButtonPress((data) => {}), 
+      session.events.onAudioChunk((data) => {}),
       
       session.events.onTranscription((data) => {}),
 
@@ -107,10 +106,6 @@ class ExampleAugmentOSApp extends TpaServer {
     cleanup.forEach(handler => this.addCleanupHandler(handler));
   }
 
-  private sendBitmap(session: TpaSession) {
-    session.layouts.showBitmapView(this.imageBase64);
-    console.log(`Sending bitmap image ${this.image_index} to glasses`);
-  }
 }
 
 // Start the server
@@ -120,7 +115,7 @@ const app = new ExampleAugmentOSApp({
   packageName: 'org.kese.augmentedchords2', // make sure this matches your app in dev console
   apiKey: 'your_api_key', // Not used right now, can be anything
   port: 80, // The port you're hosting the server on
-  augmentOSWebsocketUrl: 'wss://dev.augmentos.org/tpa-ws' //AugmentOS url
+  augmentOSWebsocketUrl: 'wss://staging.augmentos.org/tpa-ws' //AugmentOS url
 });
 
 app.start().catch(console.error);
