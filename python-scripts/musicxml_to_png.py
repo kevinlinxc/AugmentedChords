@@ -1,3 +1,4 @@
+# prototyping musicxml to png
 from pathlib import Path
 from music21 import chord, stream
 import music21

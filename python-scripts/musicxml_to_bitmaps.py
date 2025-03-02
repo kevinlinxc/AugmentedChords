@@ -5,6 +5,8 @@ import cv2
 from tqdm import tqdm
 import shutil
 import logging
+import os
+
 logger = logging.getLogger(__file__)
 
 xml_path = "megalovania.mxl"
@@ -26,7 +28,7 @@ measures = score.getElementsByClass('Measure')
     
 
 
-for i in tqdm(range(1, 4)):
+for i in tqdm(range(1, total_measures)):
     # xml to png
     measures_stream: music21.stream.Score = score.measure(i)
 
@@ -67,7 +69,6 @@ for i in tqdm(range(1, 4)):
     
     ret, img = cv2.threshold(cropped_img, 127, 255, cv2.THRESH_BINARY)
     # downscale until the height is 576
-    scale_factor = 136 / img.shape[0]
     img = cv2.resize(img, (576, 136))
 
     # invert it
@@ -75,10 +76,12 @@ for i in tqdm(range(1, 4)):
     img = cv2.bitwise_not(img)
     cv2.imwrite(str(bitmap_folder / f"{output_index}.bmp"), img)
 
-
-
     # use imagemagick to decrease file size
 
-    # template command is convert 0.bmp -monochrome -type bilevel bitmaps_final/0.bmp
-    convert_str = f"convert {bitmap_folder / f'{output_index}.bmp'} -monochrome -type bilevel {bitmap_folder / f'{output_index}.bmp'}"
+    # template command is convert 0.bmp -monochrome -type bilevel final/0.bmp
+    final_folder = Path(xml_path).parent / Path(xml_path).stem / "final"
+    final_folder.mkdir(parents=True, exist_ok=True)
+    convert_str = f"convert {bitmap_folder / f'{output_index}.bmp'} -monochrome -type bilevel {final_folder / f'{output_index}.bmp'}"
+    print("Running command: ", convert_str)
+    os.system(convert_str)
     output_index += 1
