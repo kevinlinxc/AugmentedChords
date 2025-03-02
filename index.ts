@@ -18,6 +18,9 @@ class ExampleAugmentOSApp extends TpaServer {
 
   private updateImage(index: number) {
     try {
+      if (index > 62) { // megalovania specific
+        index = 0;
+      }
       const imagePath = path.join(__dirname, `megalovania/final/${index}.bmp`);
       const imageBuffer = fs.readFileSync(imagePath);
       this.imageBase64 = imageBuffer.toString('base64');
@@ -82,34 +85,17 @@ class ExampleAugmentOSApp extends TpaServer {
     this.setupInputListener(session);
 
     // Initial bitmap display
-    setTimeout(() => {
+    setInterval(() => {
+      this.image_index += 1;
+      this.updateImage(this.image_index);
       this.sendBitmap(session);
     }, 2000);
 
     // Handle real-time transcription
     const cleanup = [
-      session.events.onButtonPress((data) => {
-        console.log('Button press detected');
-        this.image_index++;
-        this.updateImage(this.image_index);
-        this.sendBitmap(session);
-      }), 
+      session.events.onButtonPress((data) => {}), 
       
-      session.events.onTranscription((data) => {
-        if (data.isFinal && data.text.toLowerCase().includes('next')) {
-          console.log('Voice command "next" detected');
-          this.image_index++;
-          this.updateImage(this.image_index);
-          this.sendBitmap(session);
-        } else if (data.isFinal && data.text.toLowerCase().includes('back')) {
-          console.log('Voice command "back" detected');
-          if (this.image_index > 0) {
-            this.image_index--;
-            this.updateImage(this.image_index);
-            this.sendBitmap(session);
-          }
-        }
-      }),
+      session.events.onTranscription((data) => {}),
 
       session.events.onPhoneNotifications((data) => {}),
 

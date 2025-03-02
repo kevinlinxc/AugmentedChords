@@ -20,7 +20,14 @@ up when the first line is done.
 ## Logbook
 https://stackoverflow.com/questions/49939275/python-music21-library-create-png-from-stream
 
-Install lilypond
+Install lilypond - ignore, using musescore to convert to png instead because lilypond had errors
 
 
 python -m music21.configure
+
+
+Final pipeline from musicxml to bitmaps:
+`python-scripts/musicxml_to_bitmaps.py`
+musicxml -> muse21 to output png -> crop big gaps, resize and invert using opencv -> convert to bitmap
+-> use imagemagick via os.system to convert to 1-bit bitmap/make it smaller -> read with readFileSync in js
+

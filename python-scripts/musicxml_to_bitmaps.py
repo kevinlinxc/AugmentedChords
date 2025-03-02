@@ -23,10 +23,6 @@ bitmap_folder.mkdir(parents=True, exist_ok=True)
 
 output_index = 0
 
-# resize mesasure width
-measures = score.getElementsByClass('Measure')
-    
-
 
 for i in tqdm(range(1, total_measures)):
     # xml to png
