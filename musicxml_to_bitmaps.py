@@ -1,0 +1,78 @@
+from pathlib import Path
+from music21 import chord, stream
+import music21
+import cv2
+from tqdm import tqdm
+import shutil
+import logging
+logger = logging.getLogger(__file__)
+
+xml_path = "megalovania.mxl"
+
+score = music21.converter.parse(xml_path)
+total_measures = len(score.parts[0].getElementsByClass(stream.Measure))
+print(f"{xml_path} has {total_measures} measures")
+
+png_folder = Path(xml_path).parent / Path(xml_path).stem / "png"
+bitmap_folder = Path(xml_path).parent / Path(xml_path).stem / "bitmap"
+png_folder.mkdir(parents=True, exist_ok=True)
+bitmap_folder.mkdir(parents=True, exist_ok=True)
+
+
+output_index = 0
+
+# resize mesasure width
+measures = score.getElementsByClass('Measure')
+    
+
+
+for i in tqdm(range(1, 4)):
+    # xml to png
+    measures_stream: music21.stream.Score = score.measure(i)
+
+    my_stream = stream.Stream()
+    for i in range(len(measures_stream)):
+        stream_: music21.stream.base.PartStaff = measures_stream[i]
+        my_stream.append(stream_)
+
+    output_path = my_stream.write("musicxml.png", Path("temp.png"))
+    #monkey patch: 
+    # if file size < 1mb, its a page break, skip it
+    if Path(output_path).stat().st_size < 1024:
+        logger.debug(f"Skipping page break {i}")
+        continue
+
+    png_path = png_folder / f"{i}.png"
+    shutil.move(output_path, png_path)
+
+    # crop png and convert to bitmap
+    img = cv2.imread(str(png_path), cv2.IMREAD_UNCHANGED)
+    # fix transparency -> white background
+    # https://stackoverflow.com/questions/31656366/cv2-imread-and-cv2-imshow-return-all-zeros-and-black-image
+    if img.shape[2] == 4:     # we have an alpha channel
+        a1 = ~img[:,:,3]        # extract and invert that alpha
+        img = cv2.add(cv2.merge([a1,a1,a1,a1]), img)   # add up values (with clipping)
+        img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    top_row_index = 0
+    while top_row_index < len(gray) and not any(pixel < 10 for pixel in gray[top_row_index]):
+        top_row_index += 1
+    
+    bottom_row_index = len(gray) - 1
+    while bottom_row_index > top_row_index and not any(pixel < 10 for pixel in gray[bottom_row_index]):
+        bottom_row_index -= 1
+    
+    cropped_img = img[top_row_index:bottom_row_index+1]
+    
+    ret, img = cv2.threshold(cropped_img, 127, 255, cv2.THRESH_BINARY)
+    # downscale until the height is 576
+    scale_factor = 136 / img.shape[0]
+    img = cv2.resize(img, (576, 136))
+
+    # invert it
+
+    img = cv2.bitwise_not(img)
+    cv2.imwrite(str(bitmap_folder / f"{output_index}.bmp"), img)
+    output_index += 1
+
