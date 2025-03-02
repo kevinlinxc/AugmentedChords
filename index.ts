@@ -21,7 +21,7 @@ class ExampleAugmentOSApp extends TpaServer {
       if (index > 62) { // megalovania specific
         index = 0;
       }
-      const imagePath = path.join(__dirname, `megalovania/final/${index}.bmp`);
+      const imagePath = path.join(__dirname, `megalovania/final-dilate4/${index}.bmp`);
       const imageBuffer = fs.readFileSync(imagePath);
       this.imageBase64 = imageBuffer.toString('base64');
       console.log(`Image updated to index ${index}`);
@@ -44,14 +44,11 @@ class ExampleAugmentOSApp extends TpaServer {
       console.log(`Key pressed: ${JSON.stringify(keyPress)}`);
       
       // Check for navigation inputs: "]" character from footswitch, right arrow, or left arrow
-      if (keyPress === ']' || keyPress === '\u001B[C' || keyPress === 'Right' || keyPress === '\u001B[D' || keyPress === 'Left') {
-        const inputSource = keyPress === ']' ? 'Footswitch' : 
-                           (keyPress === '\u001B[C' || keyPress === 'Right') ? 'Right arrow' : 'Left arrow';
-        
-        console.log(`${inputSource} pressed`);
+
+      if (keyPress.startsWith(']') || keyPress.startsWith('['))  {
         
         // Determine direction - forward for "]" and right arrow, backward for left arrow
-        const isForward = keyPress === ']' || keyPress === '\u001B[C' || keyPress === 'Right';
+        const isForward = keyPress.startsWith(']');
         
         if (isForward) {
           console.log('Advancing forward');
@@ -86,7 +83,7 @@ class ExampleAugmentOSApp extends TpaServer {
 
     // Initial bitmap display
     setInterval(() => {
-      this.image_index += 1;
+      // this.image_index += 1;
       this.updateImage(this.image_index);
       this.sendBitmap(session);
     }, 5000);

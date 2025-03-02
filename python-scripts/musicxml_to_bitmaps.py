@@ -15,8 +15,10 @@ score = music21.converter.parse(xml_path)
 total_measures = len(score.parts[0].getElementsByClass(stream.Measure))
 print(f"{xml_path} has {total_measures} measures")
 
-png_folder = Path(xml_path).parent / Path(xml_path).stem / "png"
-bitmap_folder = Path(xml_path).parent / Path(xml_path).stem / "bitmap"
+png_folder = Path(xml_path).parent / Path(xml_path).stem / "png-dilate4"
+bitmap_folder = Path(xml_path).parent / Path(xml_path).stem / "bitmap-dilate4"
+final_folder = Path(xml_path).parent / Path(xml_path).stem / "final-dilate4"
+final_folder.mkdir(parents=True, exist_ok=True)
 png_folder.mkdir(parents=True, exist_ok=True)
 bitmap_folder.mkdir(parents=True, exist_ok=True)
 
@@ -63,23 +65,28 @@ for i in tqdm(range(1, total_measures)):
     
     cropped_img = img[top_row_index:bottom_row_index+1]
 
+
+    # dilate everything so the liens can be seen
+    invert = cv2.bitwise_not(cropped_img)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 1))
+    dilated = cv2.dilate(invert, kernel, iterations=2)
+
     text = f"Meas. {output_index}"
-    cropped_img = cv2.putText(cropped_img, text, (cropped_img.shape[1] // 2, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
+    cropped_img = cv2.putText(dilated, text, (cropped_img.shape[1] // 2, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
     
     ret, img = cv2.threshold(cropped_img, 127, 255, cv2.THRESH_BINARY)
-    # downscale until the height is 576
-    img = cv2.resize(img, (576, 136))
+
+    # downscale to max size
+    img = cv2.resize(img, (576, 120)) # 136 is max but sometimes its cut off
 
     # invert it
 
-    img = cv2.bitwise_not(img)
+    # img = cv2.bitwise_not(img)
     cv2.imwrite(str(bitmap_folder / f"{output_index}.bmp"), img)
 
     # use imagemagick to decrease file size
 
     # template command is convert 0.bmp -monochrome -type bilevel final/0.bmp
-    final_folder = Path(xml_path).parent / Path(xml_path).stem / "final"
-    final_folder.mkdir(parents=True, exist_ok=True)
     convert_str = f"magick {bitmap_folder / f'{output_index}.bmp'} -monochrome -type bilevel {final_folder / f'{output_index}.bmp'}"
     print("Running command: ", convert_str)
     os.system(convert_str)
