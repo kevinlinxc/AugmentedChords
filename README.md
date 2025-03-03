@@ -34,3 +34,31 @@ musicxml -> muse21 to output png -> crop big gaps, resize and invert using openc
 
 https://stackoverflow.com/questions/51399121/how-to-save-int16array-buffer-to-wav-file-node-js
 
+## Final brain dump:
+
+`bun install`
+
+Pitch Perfect:
+`bun run index-pp.ts` to run pitch detection. It's flaky, sometimes randomly stops. Pitch code is in `tuner.ts`.
+
+
+Sheet music:
+Run `python python-scripts/musicxml_to_bitmaps.py` to convert megalovania.mxl into bitmaps. 
+
+This can be swapped for any other musicxml file, you just have to change the folder in `index.ts`, but you might need to adjust parameters
+so that the width is good.
+
+`bun run index.ts` to run sheet music. Sending `[` and `]` to the terminal, with enter (which can be done with foot pedals) will 
+scroll through the measures. 
+
+Full setup instructions so I don't forget:
+- Set up `ngrok` so that my localhost is mirrored at a public URL. 
+- Set that public url with `/webhook` appended on [AugmentOS dashboard](https://augmentos.dev/). 
+- Run AugmentOS app on Android, connected to the smart glasses.
+- Run `bun run index.ts` to start the backend of the app.
+- Select the app on AugmentOS, the glasses should now be streaming data.
+
+Data flow (I think):
+Sensors from glasses -> AugmentOS app -> Mentra servers -> my ngrok/bun backend.
+Bun backend -> Mentra servers -> AugmentOS app -> glasses display.
+

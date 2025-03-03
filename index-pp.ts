@@ -1,61 +1,116 @@
 import { TpaServer, TpaSession } from '@augmentos/sdk';
 
-// Helper function to convert frequency to note
-function getClosestNote(frequency: number): string {
-  const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const a4 = 440;
-  const c0 = a4 * Math.pow(2, -4.75);
-  
-  if (frequency < 27.5) return 'Too low';
-  if (frequency > 4186) return 'Too high';
-  
-  const h = Math.round(12 * Math.log2(frequency / c0));
-  const octave = Math.floor(h / 12);
-  const n = h % 12;
-  return notes[n] + octave;
-}
+import * as fs from 'fs';
+import * as path from 'path';
 
-// Pitch detection using autocorrelation
-function detectPitch(buffer: Float32Array, sampleRate: number): number {
-  const correlations = new Float32Array(buffer.length);
-  
-  for (let lag = 0; lag < buffer.length; lag++) {
-    let sum = 0;
-    for (let i = 0; i < buffer.length - lag; i++) {
-      sum += buffer[i] * buffer[i + lag];
-    }
-    correlations[lag] = sum;
-  }
-  
-  let maxCorrelation = 0;
-  let maxLag = -1;
-  
-  for (let lag = 40; lag < correlations.length; lag++) {
-    if (correlations[lag] > maxCorrelation) {
-      maxCorrelation = correlations[lag];
-      maxLag = lag;
-    }
-  }
-  
-  return sampleRate / maxLag;
-}
+import {
+    TunerState,
+    initTunerState,
+    processTunerAudioChunk,
+    handleTunerCommand,
+    updateTunerDisplay,
+    getTargetFrequency,
+    formatTunerDisplay
+  } from './tuner';
 
 class ExampleAugmentOSApp extends TpaServer {
+    private imageBase64: string;
+    private emptyImageBase64: string;
+    private image_index: number;
+    private bitmapInterval: NodeJS.Timeout;
+    private tunerState: TunerState; // Add tuner state
+    private lastTunerUpdateTime = 0; 
+
+constructor(config: any) {
+    super(config);
+    this.image_index = 0;
+    this.tunerState = initTunerState()
+    let emptyImagePath = path.join(__dirname, 'empty.bmp');
+    let emptyImageBuffer = fs.readFileSync(emptyImagePath);
+    this.emptyImageBase64 = emptyImageBuffer.toString('base64');
+    // start off with image 0
+    }
   protected async onSession(session: TpaSession, sessionId: string, userId: string): Promise<void> {
     // Show welcome message
     session.layouts.showTextWall("Pitch Perfect loaded!");
 
+    // Send blank bitmap at the start
+    setInterval(() => {
+        session.layouts.showBitmapView(this.emptyImageBase64);
+    }, 10000);
+
     // Handle real-time transcription
     const cleanup = [
-      session.events.onTranscription((data) => {}),
+      session.events.onTranscription((data) => {
+        console.log('Transcription:', data.text);
+        let lowercase = data.text.toLowerCase();
+        if (lowercase.includes("pitch off")) {
+            this.tunerState.isActive = false;
+        }
+        if (lowercase.includes("pitch on")) {
+            this.tunerState.isActive = true;
+        }
+      }),
       session.events.onAudioChunk((data) => {
-        // console.log("Received audio chunk: ", data.arrayBuffer);
-        const audioData = new Float32Array(data.arrayBuffer);
-        if (audioData.length >= 100) {
-          const frequency = detectPitch(audioData, 100);
-          const note = getClosestNote(frequency);
-          console.log(`Frequency: ${frequency.toFixed(2)}Hz, Closest note: ${note}`);
-          session.layouts.showTextWall(`Frequency: ${frequency.toFixed(2)}Hz\nClosest note: ${note}`);
+        // Process audio for tuner
+        if (this.tunerState.isActive) {
+          // Use fixed sample rate as specified by AugmentOS team
+          const actualSampleRate = 16000; // Fixed at 16kHz
+          
+          // Only log sample rate occasionally to avoid spam
+          let now = Date.now();
+          if (now - this.lastTunerUpdateTime > 2000) {
+            console.log(`[AUDIO DEBUG] Using fixed sample rate: ${actualSampleRate}Hz`);
+            
+            // Calculate buffer details for debugging
+            const bufferSize = data.arrayBuffer.byteLength;
+            const bytesPerSample = 2; // Assuming 16-bit PCM
+            const numSamples = bufferSize / bytesPerSample;
+            const durationMs = (numSamples / actualSampleRate) * 1000;
+            
+            console.log(`[AUDIO DEBUG] Buffer size: ${bufferSize} bytes, 
+              Format: 16-bit PCM, ${actualSampleRate}Hz, 
+              Samples: ${numSamples}, 
+              Duration: ${durationMs.toFixed(2)}ms`);
+          }
+
+          // Create a DataView to read the PCM data
+          const dataView = new DataView(data.arrayBuffer);
+          
+          // Convert to float array for processing
+          // Assuming 16-bit signed integer PCM data
+          const floatArray = new Float32Array(dataView.byteLength / 2);
+          for (let i = 0; i < floatArray.length; i++) {
+            // Convert 16-bit PCM to float in range [-1, 1]
+            floatArray[i] = dataView.getInt16(i * 2, true) / 32768.0;
+          }
+          
+          // Process the audio with the tuner algorithm using the actual sample rate
+          const updatedState = processTunerAudioChunk(floatArray, this.tunerState, actualSampleRate);
+          
+          // Update the tuner state with the processing results
+          this.tunerState = updatedState;
+          
+          // Throttled display update to reduce traffic
+          now = Date.now();
+          if (this.tunerState.detectedFrequency !== null) {
+            if (now - this.lastTunerUpdateTime > 500) {
+              this.lastTunerUpdateTime = now;
+              
+              console.log(`[TUNER] Detected frequency: ${this.tunerState.detectedFrequency?.toFixed(2)} Hz, 
+                Target: ${getTargetFrequency(this.tunerState.targetNote).toFixed(2)} Hz`);
+              
+              // Update the display with tuner information
+              updateTunerDisplay(session, this.tunerState);
+            }
+          } else if (now - this.lastTunerUpdateTime > 1000) {
+            // No frequency detected for over a second
+            this.lastTunerUpdateTime = now;
+            console.log("[TUNER] No pitch detected");
+            
+            // Update the display with tuner information
+            updateTunerDisplay(session, this.tunerState);
+          }
         }
       }),
 
