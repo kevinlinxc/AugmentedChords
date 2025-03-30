@@ -2,25 +2,45 @@ import { TpaServer, TpaSession } from '@augmentos/sdk';
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 class ExampleAugmentOSApp extends TpaServer {
   private imageBase64: string;
+  private emptyImageBase64: string;
   private image_index: number;
+  private showingSheet: boolean;
   private bitmapInterval: NodeJS.Timeout;
+  private song: string;
+  private song_options: string[];
 
   constructor(config: any) {
     super(config);
+    this.showingSheet = false;
+    const emptyImagePath = path.join(__dirname, 'empty.bmp');
+    const emptyImageBuffer = fs.readFileSync(emptyImagePath);
+    this.emptyImageBase64 = emptyImageBuffer.toString('base64');
+    this.song = 'megalovania';
     this.image_index = 0;
-    
-    // start off with image 0
+    this.song_options = ['megalovania', "furelise"];
   }
 
-  private setBitmap(index: number, session: TpaSession): void {
+  private clearBitmap(session: TpaSession): void {
+    session.layouts.showBitmapView(this.emptyImageBase64);
+    if (this.bitmapInterval) {
+      clearInterval(this.bitmapInterval);
+    }
+  }
+
+  private setBitmap(session: TpaSession): void {
+    if (!this.showingSheet) {
+      return;
+    }
+    let index = this.image_index;
     try {
-      if (index > 62) { // megalovania specific
-        index = 0;
-      }
-      const imagePath = path.join(__dirname, `megalovania/final-dilate4/${index}.bmp`);
+      const imagePath = path.join(__dirname, `${this.song}/${index}.bmp`);
       const imageBuffer = fs.readFileSync(imagePath);
       this.imageBase64 = imageBuffer.toString('base64');
       session.layouts.showBitmapView(this.imageBase64);
@@ -45,6 +65,9 @@ class ExampleAugmentOSApp extends TpaServer {
     }
 
     process.stdin.on('data', (key: Buffer) => {
+      if (!this.showingSheet) {
+        return;
+      }
       const keyPress = key.toString();
       
       // Log raw key presses for debugging
@@ -60,12 +83,12 @@ class ExampleAugmentOSApp extends TpaServer {
         if (isForward) {
           console.log('Advancing forward');
           this.image_index++;
-          this.setBitmap(this.image_index, session);
+          this.setBitmap(session);
         } else {
           console.log('Going backward');
           if (this.image_index > 0) {
             this.image_index--;
-            this.setBitmap(this.image_index, session);
+            this.setBitmap(session);
           }
         }
       }
@@ -86,14 +109,37 @@ class ExampleAugmentOSApp extends TpaServer {
     // Set up keyboard input listener
     // careful, if you connect twice this gets set up twice
     this.setupInputListener(session);
-    this.setBitmap(0, session);
+    setTimeout(() => {
+      this.clearBitmap(session);
+    }
+    , 5000);
+
 
     // Handle real-time transcription
     const cleanup = [
       session.events.onButtonPress((data) => {}), 
       session.events.onAudioChunk((data) => {}),
       
-      session.events.onTranscription((data) => {}),
+      session.events.onTranscription((data) => {
+        if (data.isFinal) {
+          return; // skip, we already probably got it
+        }
+        let lowercase = data.text.toLowerCase();
+        console.log('Transcription:', data.text);
+        if (lowercase.includes("exit sheet")){
+          this.showingSheet = false;
+          this.clearBitmap(session);
+        }
+        else if (lowercase.includes("show sheet")){
+          this.showingSheet = true;
+          this.setBitmap(session);
+        }
+        if (!this.showingSheet) {
+          session.layouts.showTextWall(data.text, {
+            durationMs: data.isFinal ? 3000 : undefined
+          });
+        }
+      }),
 
       session.events.onPhoneNotifications((data) => {}),
 
@@ -115,9 +161,8 @@ class ExampleAugmentOSApp extends TpaServer {
 // Get your webhook URL from ngrok (or whatever public URL you have)
 const app = new ExampleAugmentOSApp({
   packageName: 'org.kese.augmentedchords2', // make sure this matches your app in dev console
-  apiKey: 'your_api_key', // Not used right now, can be anything
+  apiKey: process.env.API_KEY, // Use environment variable instead of hardcoded key
   port: 80, // The port you're hosting the server on
-  augmentOSWebsocketUrl: 'wss://staging.augmentos.org/tpa-ws' //AugmentOS url
 });
 
 app.start().catch(console.error);
