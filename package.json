@@ -10,7 +10,8 @@
   "description": "",
   "dependencies": {
     "@augmentos/sdk": "1.1.0",
-    "wavefile": "^11.0.0"
+    "wavefile": "^11.0.0",
+    "dotenv": "^16.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.8"

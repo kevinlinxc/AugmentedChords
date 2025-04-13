@@ -18,13 +18,13 @@ class ExampleAugmentOSApp extends TpaServer {
 
   constructor(config: any) {
     super(config);
-    this.showingSheet = false;
+    this.showingSheet = true;
     const emptyImagePath = path.join(__dirname, 'empty.bmp');
     const emptyImageBuffer = fs.readFileSync(emptyImagePath);
     this.emptyImageBase64 = emptyImageBuffer.toString('base64');
     this.song = 'megalovania';
     this.image_index = 0;
-    this.song_options = ['megalovania', "furelise"];
+    this.song_options = ['furelise', 'megalovania', "clairedelune"];
   }
 
   private clearBitmap(session: TpaSession): void {
