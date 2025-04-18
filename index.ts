@@ -14,6 +14,12 @@ enum AppState {
   PLAYING_SHEET
 }
 
+// App mode types
+enum AppMode {
+  AUTO,
+  MANUAL
+}
+
 // Song configuration with intervals
 interface SongConfig {
   name: string;
@@ -32,6 +38,7 @@ class ExampleAugmentOSApp extends TpaServer {
   private selectedSongIndex: number;
   private isPaused: boolean;
   private songs: SongConfig[];
+  private appMode: AppMode;
   
   constructor(config: any) {
     super(config);
@@ -42,14 +49,15 @@ class ExampleAugmentOSApp extends TpaServer {
     this.sheetInterval = null;
     this.bitmapInterval = null;
     this.image_index = 0;
+    this.appMode = AppMode.MANUAL;
     
     // Configure songs with their interval times
     this.songs = [
       { name: 'furelise', displayName: 'Fur Elise', intervalMs: 3000 },
+      { name: "sparkle", displayName: "Sparkle", intervalMs: 3500 },
       { name: 'megalovania', displayName: 'Megalovania', intervalMs: 3000 },
       { name: 'clairedelune', displayName: 'Claire de Lune', intervalMs: 3000 },
       { name: 'gymnopedie', displayName: 'Gymnopedie', intervalMs: 3000 },
-      { name: 'moonlightsonata', displayName: 'Moonlight Sonata', intervalMs: 3000 }
     ];
     
     // Load empty bitmap for clearing display
@@ -162,6 +170,25 @@ class ExampleAugmentOSApp extends TpaServer {
     }
   }
 
+  private setBitmap(session: TpaSession): void {
+    try {
+      const currentSong = this.getCurrentSong();
+      const imagePath = path.join(__dirname, `${currentSong.name}/${this.image_index}.bmp`);
+      const imageBuffer = fs.readFileSync(imagePath);
+      this.imageBase64 = imageBuffer.toString('base64');
+      session.layouts.showBitmapView(this.imageBase64);
+      
+      console.log(`Showing ${currentSong.name} sheet ${this.image_index}`);
+    } catch (error) {
+      console.error(`Error loading image ${this.image_index}:`, error);
+      // If we've gone too far forward, go back one
+      if (this.image_index > 0) {
+        this.image_index--;
+        console.log(`Reached end, reverting to image ${this.image_index}`);
+      }
+    }
+  }
+
   private startSheetInterval(session: TpaSession): void {
     if (this.isPaused) return;
     
@@ -201,7 +228,89 @@ class ExampleAugmentOSApp extends TpaServer {
     this.showInstructions(session);
   }
 
+  private setupInputListener(session: TpaSession): void {
+    // Set raw mode to get input without waiting for Enter key
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(true);
+    }
+
+    process.stdin.on('data', (key: Buffer) => {
+      if (!this.showingSheet) {
+        return;
+      }
+      const keyPress = key.toString();
+      
+      
+      // Mode switching with semicolon (;)
+      if (keyPress.startsWith(';')) {
+        if (this.appMode === AppMode.AUTO) {
+          this.appMode = AppMode.MANUAL;
+          console.log('Switched to MANUAL mode');
+          
+          // In manual mode, clear the interval
+          this.clearIntervals();
+        } else {
+          this.appMode = AppMode.AUTO;
+          console.log('Switched to AUTO mode');
+          
+          // In auto mode, restart the interval
+          this.startSheetInterval(session);
+        }
+        return;
+      }
+
+      // Handle square bracket inputs
+      if (keyPress.startsWith(']') || keyPress.startsWith('[')) {
+        const isForward = keyPress.startsWith(']');
+        
+        if (this.appMode === AppMode.MANUAL) {
+          // In manual mode: directly change image_index
+          if (isForward) {
+            console.log('Advancing forward (manual mode)');
+            this.image_index++;
+            this.setBitmap(session);
+          } else {
+            console.log('Going backward (manual mode)');
+            if (this.image_index > 0) {
+              this.image_index--;
+              this.setBitmap(session);
+            }
+          }
+        } else {
+          // In auto mode: skip forward or pause temporarily
+          if (isForward) {
+            console.log('Skipping forward (auto mode)');
+            this.image_index++;
+          } else {
+            console.log('Pausing briefly (auto mode)');
+            // Temporarily pause for half the interval time
+            if (this.sheetInterval) {
+              clearInterval(this.sheetInterval);
+              const pauseTime = this.getCurrentSong().intervalMs / 2;
+              
+              setTimeout(() => {
+                if (this.appMode === AppMode.AUTO && this.showingSheet && !this.isPaused) {
+                  this.startSheetInterval(session);
+                }
+              }, pauseTime);
+            }
+          }
+        }
+      }
+      
+      // Allow Ctrl+C to exit
+      if (keyPress === '\u0003') {
+        process.exit();
+      }
+    });
+
+    console.log('Input listener set up. Press "]" to advance, "[" to go back, ";" to switch modes, or Ctrl+C to exit.');
+  }
+
   protected async onSession(session: TpaSession, sessionId: string, userId: string): Promise<void> {
+    // Set up keyboard input listener
+    this.setupInputListener(session);
+    
     // Show welcome message on startup
     this.clearBitmap(session);
     setTimeout(() => {
