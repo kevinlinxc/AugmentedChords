@@ -39,6 +39,8 @@ class ExampleAugmentOSApp extends TpaServer {
   private isPaused: boolean;
   private songs: SongConfig[];
   private appMode: AppMode;
+  private intervalDelta: number;
+  private currentSongDelay: number;
   
   constructor(config: any) {
     super(config);
@@ -50,11 +52,14 @@ class ExampleAugmentOSApp extends TpaServer {
     this.bitmapInterval = null;
     this.image_index = 0;
     this.appMode = AppMode.MANUAL;
-    
+    this.intervalDelta = 0;
+    this.currentSongDelay = 0;
+
+
     // Configure songs with their interval times
     this.songs = [
       { name: 'furelise', displayName: 'Fur Elise', intervalMs: 3000 },
-      { name: "sparkle", displayName: "Sparkle", intervalMs: 3500 },
+      { name: "sparkle-final-final", displayName: "Sparkle", intervalMs: 3800 },
       { name: 'megalovania', displayName: 'Megalovania', intervalMs: 3000 },
       { name: 'clairedelune', displayName: 'Claire de Lune', intervalMs: 3000 },
       { name: 'gymnopedie', displayName: 'Gymnopedie', intervalMs: 3000 },
@@ -93,8 +98,8 @@ class ExampleAugmentOSApp extends TpaServer {
     session.layouts.showTextWall(
       "Say 'show help' to view these instructions.\n" +
       "Say 'show catalog' to see available music.\n" +
-      "Navigate with 'next', 'previous' and 'select.\n" +
-      "Control with 'pause/stop', 'start' 'reset', or 'exit'.\n", { durationMs: 3000 }
+      "Catalog: 'next', 'previous', 'select'.\n" +
+      "Left pedal: auto/manual. Right: fwd, middle: back.\n", { durationMs: 3000 }
     );
   }
 
@@ -137,7 +142,8 @@ class ExampleAugmentOSApp extends TpaServer {
       this.showingSheet = true;
       this.isPaused = false;
       this.image_index = 0;
-      
+      // clear text
+      session.layouts.showDoubleTextWall("", "", {durationMs: 0});
       // Display first sheet and start intervals
       this.loadAndDisplaySheet(session);
     }
@@ -157,7 +163,7 @@ class ExampleAugmentOSApp extends TpaServer {
       }
       this.bitmapInterval = setInterval(() => {
         session.layouts.showBitmapView(this.imageBase64);
-      }, 10000);
+      }, 5000);
       
       console.log(`Showing ${currentSong.name} sheet ${this.image_index}`);
     } catch (error) {
@@ -190,18 +196,24 @@ class ExampleAugmentOSApp extends TpaServer {
   }
 
   private startSheetInterval(session: TpaSession): void {
-    if (this.isPaused) return;
+    this.isPaused = false;
     
     this.clearIntervals();
     const currentSong = this.getCurrentSong();
     
+    const interval = this.currentSongDelay +  this.intervalDelta;
+    console.log(`Starting sheet interval with delay: ${interval}ms`);
     // Set up interval to advance sheet music
     this.sheetInterval = setInterval(() => {
       if (!this.isPaused && this.showingSheet) {
         this.image_index++;
         this.loadAndDisplaySheet(session);
+        if (this.intervalDelta !== 0){
+          this.startSheetInterval(session);
+        }
       }
-    }, currentSong.intervalMs);
+    },  interval);
+    this.intervalDelta = 0; // reset delta after starting the interval
   }
 
   private pauseSheet(session: TpaSession): void {
@@ -254,6 +266,9 @@ class ExampleAugmentOSApp extends TpaServer {
           console.log('Switched to AUTO mode');
           
           // In auto mode, restart the interval
+          // set the current standard interval
+          this.currentSongDelay = this.getCurrentSong().intervalMs;
+
           this.startSheetInterval(session);
         }
         return;
@@ -279,21 +294,23 @@ class ExampleAugmentOSApp extends TpaServer {
         } else {
           // In auto mode: skip forward or pause temporarily
           if (isForward) {
-            console.log('Skipping forward (auto mode)');
-            this.image_index++;
+            console.log('Speeding up (auto mode)');
+            this.intervalDelta -= 500;
+
           } else {
-            console.log('Pausing briefly (auto mode)');
+            console.log('Slowing down (auto mode)');
             // Temporarily pause for half the interval time
-            if (this.sheetInterval) {
-              clearInterval(this.sheetInterval);
-              const pauseTime = this.getCurrentSong().intervalMs / 2;
+            this.intervalDelta += 500;
+            // if (this.sheetInterval) {
+            //   clearInterval(this.sheetInterval);
+            //   const pauseTime = this.getCurrentSong().intervalMs / 2;
               
-              setTimeout(() => {
-                if (this.appMode === AppMode.AUTO && this.showingSheet && !this.isPaused) {
-                  this.startSheetInterval(session);
-                }
-              }, pauseTime);
-            }
+            //   setTimeout(() => {
+            //     if (this.appMode === AppMode.AUTO && this.showingSheet && !this.isPaused) {
+            //       this.startSheetInterval(session);
+            //     }
+            //   }, pauseTime);
+            // }
           }
         }
       }
