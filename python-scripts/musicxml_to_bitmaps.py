@@ -9,8 +9,9 @@ import os
 
 logger = logging.getLogger(__file__)
 
-xml_path = "clairedelune.mxl"
-num_bars = 2
+xml_path = "megalovania.mxl"
+num_bars = 1
+kernel_dims = (3, 1)
 
 score = music21.converter.parse(xml_path)
 total_measures = len(score.parts[0].getElementsByClass(stream.Measure))
@@ -92,7 +93,7 @@ for i in tqdm(range(1, total_measures, num_bars)):
 
     # 4. dilate with a horizontal kernel so that note stems are more visible
     invert = cv2.bitwise_not(img)
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, kernel_dims)
     dilated = cv2.dilate(invert, kernel, iterations=2)
 
     text = f"Meas. {output_index}"
