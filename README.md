@@ -1,6 +1,9 @@
 # AugmentedChords
 Music-related augmented reality apps for smart glasses using [AugmentOS](https://augmentos.dev/)
 
+Video:
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/j36u2i7PKKE/0.jpg)](https://www.youtube.com/watch?v=j36u2i7PKKE) 
+
 This repo looks like a tornado blew through it because it was a hackathon project, here's the important files:
 
 `index.ts` - main file for the sheet music app, its Typescript, uses AugmentOS's SDK to communicate with Mentra servers
