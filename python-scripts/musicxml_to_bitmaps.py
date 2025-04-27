@@ -9,11 +9,13 @@ import os
 
 logger = logging.getLogger(__file__)
 
-xml_path = "megalovania.mxl"
-num_bars = 1
+xml_path = "musicxmls/clairedelune.mxl"
+num_bars = 2
 kernel_dims = (3, 1)
 
 score = music21.converter.parse(xml_path)
+for layoutObj in list(score[music21.layout.LayoutBase]):
+    layoutObj.activeSite.remove(layoutObj)
 total_measures = len(score.parts[0].getElementsByClass(stream.Measure))
 print(f"{xml_path} has {total_measures} measures")
 
